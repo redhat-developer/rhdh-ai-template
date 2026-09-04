@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: hook-succeeded
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}-tekton-setup
+    app.kubernetes.io/name:  {{ .Release.Name }}-tekton-setup
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }} 
+  name: {{ .Release.Name }}-tekton-setup
+spec:
+  template:
+    spec:
+      containers:
+        - name: verify-tekton-update-tektonconfig
+          command:
+            - /bin/bash
+            - -c
+            - |
+              #!/usr/bin/env bash
+              set -o nounset
+              set -o pipefail
+
+              cd /tmp || exit
+
+              echo APP_NAME is "$APP_NAME"
+              echo APP_NAMESPACE is "$APP_NAMESPACE"
+
+              until oc get route -n "$APP_NAMESPACE" pipelines-as-code-controller; do
+                sleep 3
+              done
+              echo "Pipelines OK"
+
+              # with no use of chains nor konflux OCI bundles, the default tektonconfig is sufficient for us
+
+              exists=$(oc get secret pipelines-as-code-secret -n "$APP_NAMESPACE")
+              return_code=$?
+              if [ $return_code == 0 ]; then
+                oc -n "$APP_NAMESPACE" delete secret pipelines-as-code-secret || exit
+                sleep 1
+              fi
+
+              # TODO fix the multi-line secrets handling for GITHUB_APP_PRIVATE_KEY with a different solution than:
+              # https://github.com/redhat-ai-dev/ai-lab-helm-charts/blob/75f7b1b6b990d007e83572a0dae856383feba051/charts/ai-software-templates/pipeline-install/templates/tekton-setup-verfication.yaml#L45-L51
+              # The above solution shows the GENERIC pk header/footer that triggers a false positive on rh-pre-commit.
+              # If this solution has to be used, please contact InfoSec to fix the false positive on their end and re-add it in.
+
+              oc -n "$APP_NAMESPACE" create secret generic pipelines-as-code-secret \
+              --from-literal github-application-id="$GITHUB_APP_APP_ID" \
+              --from-literal github-private-key="$GITHUB_APP_PRIVATE_KEY" \
+              --from-literal webhook.secret="$GITHUB_APP_WEBHOOK_SECRET"
+
+          image: registry.redhat.io/openshift4/ose-cli-rhel9:v4.16
+          env:
+            - name: GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-app-secret
+                  key: key
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-app-config
+      restartPolicy: Never
+      serviceAccountName: {{ .Release.Name }}-sa

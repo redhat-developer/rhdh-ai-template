@@ -1,0 +1,30 @@
+name: Charts - Verify updated gitops resources
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "charts/**"
+      - "apps/ai/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "charts/**"
+      - "apps/ai/**"
+
+jobs:
+  verify-updated-gitops-resources:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4.1.7
+
+      - name: Run generate.sh and check if the gitops based charts are up-to-date
+        run: |
+          bash charts/generate.sh
+          if [[ ! -z $(git status -s) ]]
+          then
+            echo 'The script `./charts/generate.sh` did introduce changes, which should ideally be checked in as part of the PR.'
+            git status
+            exit 1
+          fi

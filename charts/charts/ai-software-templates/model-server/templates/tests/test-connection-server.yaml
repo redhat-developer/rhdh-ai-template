@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test"
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  containers:
+    - name: curl
+      image: quay.io/curl/curl:latest
+      command:
+        - "sh"
+        - "-c"
+        - curl -sSf http://{{ .Release.Name }}-model-server:{{ .Values.model.modelServicePort }}/v1/models && exit 0;
+  restartPolicy: Never

@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "tekton": {
+            "properties": {
+                "gitAppId": {
+                    "description": "[REQUIRED] The GitHub Application ID",
+                    "type": "string"
+                },
+                "gitAppPrivateKey": {
+                    "description": "[REQUIRED] The GitHub Application Private Key",
+                    "type": "string"
+                },
+                "gitAppWebhookSecret": {
+                    "description": "[REQUIRED] The GitHub Application Webhook Secret",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "gitAppId",
+                "gitAppWebhookSecret",
+                "gitAppPrivateKey"
+            ],
+            "type": "object"
+        }
+    },
+    "type": "object"
+}
